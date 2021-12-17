@@ -3,6 +3,7 @@ __assert_target(trimesh2)
 set(SRCS)
 set(LIBS trimesh2)
 set(INCS ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+set(INERTFACES ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
 include(qhull.cmake)
 include(wrapper.cmake)
