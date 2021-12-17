@@ -127,4 +127,71 @@ namespace qhullWrapper
 		}
 		return outMesh;
 	}
+
+	void convex_hull_2d(trimesh::TriMesh& inMesh)
+	{
+		if (inMesh.vertices.size() < 3)
+		{
+			return ;
+		}
+
+		std::vector<trimesh::point> outVertices;
+		std::sort(inMesh.vertices.begin(), inMesh.vertices.end());
+
+		outVertices.resize(3 * inMesh.vertices.size());
+
+		// Build lower hull
+		int hullNum = 0;
+		for (int i = 0; i < inMesh.vertices.size(); ++i)
+		{
+			trimesh::point currentPoint = inMesh.vertices[i];
+			while (hullNum >= 2)
+			{
+				trimesh::point hull_1 = outVertices[hullNum - 1];
+				trimesh::point hull_2 = outVertices[hullNum - 2];
+
+				double num = (double)(hull_2.x - hull_1.x) * (double)(currentPoint.y - hull_1.y) -
+					(double)(hull_2.y - hull_1.y) * (double)(currentPoint.x - hull_1.x);
+				if (num <= 0)
+				{
+					--hullNum;
+				}
+				else
+				{
+					break;
+				}
+			}
+			outVertices[hullNum++] = inMesh.vertices[i];
+		}
+
+		// Build upper hull
+		for (int i = inMesh.vertices.size() - 2, t = hullNum + 1; i >= 0; --i)
+		{
+			trimesh::point currentPoint = inMesh.vertices[i];
+			while (hullNum >= t)
+			{
+				trimesh::point hull_1 = outVertices[hullNum - 1];
+				trimesh::point hull_2 = outVertices[hullNum - 2];
+
+				double num = (double)(hull_2.x - hull_1.x) * (double)(currentPoint.y - hull_1.y) -
+					(double)(hull_2.y - hull_1.y) * (double)(currentPoint.x - hull_1.x);
+				if (num <= 0)
+				{
+					--hullNum;
+				}
+				else
+				{
+					break;
+				}
+			}
+			outVertices[hullNum++] = inMesh.vertices[i];
+		}
+
+		outVertices.resize(hullNum);
+		if (outVertices.front() == outVertices.back())
+		{
+			outVertices.pop_back();
+		}
+		inMesh.vertices = outVertices;
+	}
 }
