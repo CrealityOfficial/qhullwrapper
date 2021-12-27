@@ -1,7 +1,8 @@
 __assert_target(trimesh2)
+__assert_target(cxnd)
 
 set(SRCS)
-set(LIBS trimesh2)
+set(LIBS trimesh2 cxnd)
 set(INCS ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 set(INERTFACES ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
