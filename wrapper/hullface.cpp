@@ -417,18 +417,6 @@ namespace qhullWrapper
 			}
 		}
 
-		//修正法线
-		for (unsigned int polygon_id = 0; polygon_id < meshes.size(); ++polygon_id)
-		{
-			std::vector<trimesh::point>& apoints = meshes[polygon_id]->vertices;
-			trimesh::vec3 normal = meshes[polygon_id]->normals[0];
-			trimesh::vec3 newNormal = trimesh::normalized(trimesh::trinorm(apoints[0], apoints[1], apoints[2]));
-			if ((newNormal DOT normal) < 0)
-			{
-				std::sort(apoints.rbegin(), apoints.rend());
-			}
-		}
-
 		//三角化
 		for (trimesh::TriMesh* amesh : meshes)
 		{
@@ -438,16 +426,31 @@ namespace qhullWrapper
 			{
 				continue;
 			}
+			//修正法线
+			trimesh::vec3 originNormal = amesh->normals[0];
+			trimesh::vec3 newNormal = trimesh::normalized(trimesh::trinorm(apoints[0], apoints[1], apoints[2]));
+			bool isReverse = false;
+			if ((originNormal DOT newNormal)<0)
+			{
+				isReverse = true;
+			}
+
 			for (int n = 2; n < apoints.size(); n++)
 			{
 				int index = amesh->vertices.size();
 				amesh->vertices.push_back(apoints[0]);
 				amesh->vertices.push_back(apoints[n - 1]);
 				amesh->vertices.push_back(apoints[n]);
-				amesh->faces.push_back(trimesh::TriMesh::Face(index, index + 1, index + 2));
+				if (isReverse)
+				{
+					amesh->faces.push_back(trimesh::TriMesh::Face(index+2, index + 1, index));
+				}
+				else
+				{
+					amesh->faces.push_back(trimesh::TriMesh::Face(index, index + 1, index + 2));
+				}
 			}
 		}
-
 		return meshes;
 	}
 }
