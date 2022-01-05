@@ -194,4 +194,80 @@ namespace qhullWrapper
 		}
 		return outMesh;
 	}
+
+	trimesh::TriMesh* convex2DPolygon(const float* vertex, int count)
+	{
+		if (!vertex || (count <= 0))
+			return nullptr;
+
+		trimesh::TriMesh* mesh = new trimesh::TriMesh();
+		using namespace orgQhull;
+
+		struct line
+		{
+		    int start;
+		    int end;
+		};
+		
+		std::vector<line> polygons;
+		try
+		{
+		    Qhull q("", 2, count, vertex, "");
+		    QhullFacetList facets = q.facetList();
+		
+		    auto fadd = [&polygons](const line& l) {
+		        polygons.push_back(l);
+		    };
+		    for (QhullFacet f : facets)
+		    {
+		        if (!f.isGood())
+		        {
+		            // ignore facet
+		        }
+		        else if (!f.isTopOrient() && f.isSimplicial())
+		        { /* orient the vertices like option 'o' */
+		            QhullVertexSet vs = f.vertices();
+		
+		            line l;
+		            l.start = vs[1].point().id();
+		            l.end = vs[0].point().id();
+		            fadd(l);
+		        }
+		        else
+		        {  /* note: for non-simplicial facets, this code does not duplicate option 'o', see qh_facet3vertex and qh_printfacetNvertex_nonsimplicial */
+		
+		            int c = 0;
+		            line l;
+		            for (QhullVertex vertex : f.vertices())
+		            {
+		                QhullPoint p = vertex.point();
+		                if (c == 0)
+		                    l.start = p.id();
+		                else if (c == 1)
+		                    l.end = p.id();
+		                ++c;
+		            }
+		
+		            if(c == 2)
+		                fadd(l);
+		        }
+		    }
+		
+			auto f = [&vertex](int index)->trimesh::vec3 {
+				return trimesh::vec3(*(vertex + 2 * index),
+					*(vertex + 2 * index + 1), 0.0f);
+			};
+		    for (line& l : polygons)
+		    {
+		        mesh->vertices.push_back(f(l.start));
+		        mesh->vertices.push_back(f(l.end));
+		    }
+		}
+		catch (QhullError& e) {
+			delete mesh;
+			mesh = nullptr;
+		}
+
+		return mesh;
+	}
 }

@@ -19,8 +19,9 @@ namespace qhullWrapper
 	QHULLWRAPPER_API void calculateConvex(trimesh::TriMesh* mesh, ccglobal::Tracer* tracer);
 
 	QHULLWRAPPER_API trimesh::TriMesh* convex_hull_3d(trimesh::TriMesh* inMesh);
-
 	QHULLWRAPPER_API trimesh::TriMesh* convex_hull_2d(trimesh::TriMesh* inMesh);
+
+	QHULLWRAPPER_API trimesh::TriMesh* convex2DPolygon(const float* vertex, int count);
 }
 
 #endif // QHULLWRAPPER_MESHCONVEX_1627200674710_H
