@@ -270,4 +270,29 @@ namespace qhullWrapper
 
 		return mesh;
 	}
+
+	trimesh::TriMesh* convex2DPolygon(trimesh::TriMesh* mesh, const trimesh::fxform& xf, ccglobal::Tracer* tracer)
+	{
+		if (!mesh)
+			return nullptr;
+
+		if (mesh->flags.size() == 0)
+			calculateConvex(mesh, tracer);
+
+		if (mesh->flags.size() == 0)
+			return nullptr;
+
+		int size = (int)mesh->flags.size();
+
+		std::vector<trimesh::vec2> hullPoints2D;
+		hullPoints2D.resize(size);
+		for (int i = 0; i < size; ++i)
+		{
+			trimesh::vec3 v = xf * mesh->vertices.at(mesh->flags.at(i));
+
+			hullPoints2D[i] = trimesh::vec2(v.x, v.y);
+		}
+
+		return convex2DPolygon((float*)hullPoints2D.data(), size);
+	}
 }
