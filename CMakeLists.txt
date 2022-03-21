@@ -4,7 +4,7 @@ __assert_target(cxnd)
 set(SRCS)
 set(LIBS trimesh2 cxnd)
 set(INCS ${CMAKE_CURRENT_SOURCE_DIR}/include/)
-set(INERTFACES ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+set(INTERFACES ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
 include(qhull.cmake)
 include(wrapper.cmake)
