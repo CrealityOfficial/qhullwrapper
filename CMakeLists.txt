@@ -1,8 +1,8 @@
 __assert_target(trimesh2)
-__assert_target(cxnd)
+__assert_target(mmesh)
 
 set(SRCS)
-set(LIBS trimesh2 cxnd)
+set(LIBS trimesh2 mmesh)
 set(INCS ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 set(INTERFACES ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
