@@ -26,6 +26,8 @@ namespace qhullWrapper
 		int connected_face_index[3];
 		bool bUnique = true;
 		bool bAdd = false;
+
+		int index = 0;  //just for sort
 	};
 
 	class MeshTest
@@ -70,18 +72,18 @@ namespace qhullWrapper
 		}
 	};
 
-	int getFaceIdxWithPoints(MeshTest* ameshtest, int idx0, int idx1, int notFaceIdx, int notFaceVertexIdx)
+	int getFaceIdxWithPoints(MeshTest& ameshtest, int idx0, int idx1, int notFaceIdx, int notFaceVertexIdx)
 	{
 		std::vector<int> candidateFaces;
-		for (int f : ameshtest->vertices[idx0].connected_faces)
+		for (int f : ameshtest.vertices[idx0].connected_faces)
 		{
 			if (f == notFaceIdx)
 			{
 				continue;
 			}
-			if (ameshtest->faces[f].vertex_index[0] == idx1
-				|| ameshtest->faces[f].vertex_index[1] == idx1
-				|| ameshtest->faces[f].vertex_index[2] == idx1
+			if (ameshtest.faces[f].vertex_index[0] == idx1
+				|| ameshtest.faces[f].vertex_index[1] == idx1
+				|| ameshtest.faces[f].vertex_index[2] == idx1
 				)  candidateFaces.push_back(f);
 
 		}
@@ -100,12 +102,12 @@ namespace qhullWrapper
 			//has_disconnected_faces = true;
 		}
 
-		FPoint3 vn = ameshtest->vertices[idx1].p - ameshtest->vertices[idx0].p;
+		FPoint3 vn = ameshtest.vertices[idx1].p - ameshtest.vertices[idx0].p;
 		FPoint3 n = vn / vn.vSize(); // the normal of the plane in which all normals of faces connected to the edge lie => the normalized normal
-		FPoint3 v0 = ameshtest->vertices[idx1].p - ameshtest->vertices[idx0].p;
+		FPoint3 v0 = ameshtest.vertices[idx1].p - ameshtest.vertices[idx0].p;
 
 		// the normals below are abnormally directed! : these normals all point counterclockwise (viewed from idx1 to idx0) from the face, irrespective of the direction of the face.
-		FPoint3 n0 = FPoint3(ameshtest->vertices[notFaceVertexIdx].p - ameshtest->vertices[idx0].p).cross(v0);
+		FPoint3 n0 = FPoint3(ameshtest.vertices[notFaceVertexIdx].p - ameshtest.vertices[idx0].p).cross(v0);
 
 		if (n0.vSize() <= 0)
 		{
@@ -120,11 +122,11 @@ namespace qhullWrapper
 			int candidateVertex;
 			{// find third vertex belonging to the face (besides idx0 and idx1)
 				for (candidateVertex = 0; candidateVertex < 3; candidateVertex++)
-					if (ameshtest->faces[candidateFace].vertex_index[candidateVertex] != idx0 && ameshtest->faces[candidateFace].vertex_index[candidateVertex] != idx1)
+					if (ameshtest.faces[candidateFace].vertex_index[candidateVertex] != idx0 && ameshtest.faces[candidateFace].vertex_index[candidateVertex] != idx1)
 						break;
 			}
 
-			FPoint3 v1 = ameshtest->vertices[ameshtest->faces[candidateFace].vertex_index[candidateVertex]].p - ameshtest->vertices[idx0].p;
+			FPoint3 v1 = ameshtest.vertices[ameshtest.faces[candidateFace].vertex_index[candidateVertex]].p - ameshtest.vertices[idx0].p;
 			FPoint3 n1 = v0.cross(v1);
 
 			double dot = n0 * n1;
@@ -152,36 +154,34 @@ namespace qhullWrapper
 		return bestIdx;
 	};
 
-	MeshTest* trimesh2meshtest(trimesh::TriMesh* currentMesh)
+	void trimesh2meshtest(trimesh::TriMesh* currentMesh, MeshTest& ameshTest)
 	{
-		MeshTest* ameshTest = new MeshTest();
 		for (trimesh::point apoint : currentMesh->vertices)
 		{
-			ameshTest->vertices.push_back(apoint);
+			ameshTest.vertices.push_back(apoint);
 		}
 
 		for (unsigned int i = 0; i < currentMesh->faces.size(); i++)
 		{
 			trimesh::TriMesh::Face& face = currentMesh->faces[i];
-			ameshTest->faces.emplace_back();
-			ameshTest->faces[i].vertex_index[0] = face.at(0);
-			ameshTest->faces[i].vertex_index[1] = face.at(1);
-			ameshTest->faces[i].vertex_index[2] = face.at(2);
+			ameshTest.faces.emplace_back();
+			ameshTest.faces[i].vertex_index[0] = face.at(0);
+			ameshTest.faces[i].vertex_index[1] = face.at(1);
+			ameshTest.faces[i].vertex_index[2] = face.at(2);
 
-			ameshTest->vertices[face.at(0)].connected_faces.push_back(i);
-			ameshTest->vertices[face.at(1)].connected_faces.push_back(i);
-			ameshTest->vertices[face.at(2)].connected_faces.push_back(i);
+			ameshTest.vertices[face.at(0)].connected_faces.push_back(i);
+			ameshTest.vertices[face.at(1)].connected_faces.push_back(i);
+			ameshTest.vertices[face.at(2)].connected_faces.push_back(i);
 		}
 
 		for (unsigned int i = 0; i < currentMesh->faces.size(); i++)
 		{
 			trimesh::TriMesh::Face& face = currentMesh->faces[i];
 			// faces are connected via the outside
-			ameshTest->faces[i].connected_face_index[0] = getFaceIdxWithPoints(ameshTest, face.at(0), face.at(1), i, face.at(2));
-			ameshTest->faces[i].connected_face_index[1] = getFaceIdxWithPoints(ameshTest, face.at(1), face.at(2), i, face.at(0));
-			ameshTest->faces[i].connected_face_index[2] = getFaceIdxWithPoints(ameshTest, face.at(2), face.at(0), i, face.at(1));
+			ameshTest.faces[i].connected_face_index[0] = getFaceIdxWithPoints(ameshTest, face.at(0), face.at(1), i, face.at(2));
+			ameshTest.faces[i].connected_face_index[1] = getFaceIdxWithPoints(ameshTest, face.at(1), face.at(2), i, face.at(0));
+			ameshTest.faces[i].connected_face_index[2] = getFaceIdxWithPoints(ameshTest, face.at(2), face.at(0), i, face.at(1));
 		}
-		return ameshTest;
 	};
 
 	trimesh::fxform fromQuaterianEX(const trimesh::quaternion& q)
@@ -241,27 +241,27 @@ namespace qhullWrapper
 		return meshes;
 	}
 
-	void getNormalFace(MeshTest* meshT, trimesh::point& Nnormal,int n, trimesh::TriMesh* aface)
+	void getNormalFace(MeshTest& meshT, trimesh::point& Nnormal,int n, trimesh::TriMesh* aface)
 	{
 		for (int k = 0; k < 3; k++)
 		{
-			int faceIndex = meshT->faces[n].connected_face_index[k];
-			if (meshT->faces[faceIndex].bAdd)
+			int faceIndex = meshT.faces[n].connected_face_index[k];
+			if (meshT.faces[faceIndex].bAdd)
 			{
 				continue;//排除已经添加过的face
 			}
-			int index0 = meshT->faces[faceIndex].vertex_index[0];
-			int index1 = meshT->faces[faceIndex].vertex_index[1];
-			int index2 = meshT->faces[faceIndex].vertex_index[2];
-			trimesh::point thisNormal = trimesh::normalized(trimesh::trinorm(meshT->vertices[index0].p, meshT->vertices[index1].p, meshT->vertices[index2].p));
+			int index0 = meshT.faces[faceIndex].vertex_index[0];
+			int index1 = meshT.faces[faceIndex].vertex_index[1];
+			int index2 = meshT.faces[faceIndex].vertex_index[2];
+			trimesh::point thisNormal = trimesh::normalized(trimesh::trinorm(meshT.vertices[index0].p, meshT.vertices[index1].p, meshT.vertices[index2].p));
 			if (std::abs(Nnormal.at(0) - thisNormal.at(0)) < 0.01
 				&& std::abs(Nnormal.at(1) - thisNormal.at(1)) < 0.01
 				&& std::abs(Nnormal.at(2) - thisNormal.at(2)) < 0.01)
 			{
-				aface->vertices.push_back(meshT->vertices[index0].p);
-				aface->vertices.push_back(meshT->vertices[index1].p);
-				aface->vertices.push_back(meshT->vertices[index2].p);
-				meshT->faces[faceIndex].bAdd = true;
+				aface->vertices.push_back(meshT.vertices[index0].p);
+				aface->vertices.push_back(meshT.vertices[index1].p);
+				aface->vertices.push_back(meshT.vertices[index2].p);
+				meshT.faces[faceIndex].bAdd = true;
 				getNormalFace(meshT, Nnormal, faceIndex, aface);
 			}
 		}
@@ -274,155 +274,151 @@ namespace qhullWrapper
 		if (!mesh)
 			return meshes;
 
-		MeshTest* meshT = trimesh2meshtest(mesh);
+		MeshTest meshT;
+		trimesh2meshtest(mesh, meshT);
 
-#if 1
-	//按面积对meshT 进行排序
-	for (int n = 1; n < meshT->faces.size(); n++)
-	{
-		int preIndex = n - 1;
-		MeshFace currentMeshFace = meshT->faces[n];
-		int currentVertIndex0 = meshT->faces[n].vertex_index[0];
-		int currentVertIndex1 = meshT->faces[n].vertex_index[1];
-		int currentVertIndex2 = meshT->faces[n].vertex_index[2];
-		int currentArea = det(meshT->vertices[currentVertIndex0].p, meshT->vertices[currentVertIndex1].p, meshT->vertices[currentVertIndex2].p);
-		while (preIndex >= 0 && det(meshT->vertices[meshT->faces[preIndex].vertex_index[0]].p,
-			meshT->vertices[meshT->faces[preIndex].vertex_index[1]].p,
-			meshT->vertices[meshT->faces[preIndex].vertex_index[2]].p) <
-			currentArea)
-		{
-			meshT->faces[preIndex + 1] = meshT->faces[preIndex];
-			preIndex--;
-		}
-		meshT->faces[preIndex + 1] = currentMeshFace;
-	}
+		//按面积对meshT 进行排序
+		int faceNum = (int)meshT.faces.size();
+		if (faceNum <= 0)
+			return meshes;
 
-	//获取面积最大并且不共法线的500个三角面，并合并和其共法线的面
-	int faceNum = meshT->faces.size();
-	for (int n = 0; n < faceNum; n++)
-	{
-		if (meshT->faces[n].bUnique==false)
+		//zenggui
+		std::vector<float> areas(faceNum, 0.0f);
+		std::vector<trimesh::vec3> normals(faceNum);
+		for (int i = 0; i < faceNum; ++i)
 		{
-			continue;
+			MeshFace& currentMeshFace = meshT.faces[i];
+			currentMeshFace.index = i;
+			int currentVertIndex0 = currentMeshFace.vertex_index[0];
+			int currentVertIndex1 = currentMeshFace.vertex_index[1];
+			int currentVertIndex2 = currentMeshFace.vertex_index[2];
+			areas.at(i) = det(meshT.vertices[currentVertIndex0].p, meshT.vertices[currentVertIndex1].p, meshT.vertices[currentVertIndex2].p);
+
+			normals.at(i) = trimesh::normalized(trimesh::trinorm(meshT.vertices[currentVertIndex0].p,
+				meshT.vertices[currentVertIndex1].p, meshT.vertices[currentVertIndex2].p));
 		}
-		trimesh::TriMesh* aface = new trimesh::TriMesh();
-		int index0 = meshT->faces[n].vertex_index[0];
-		int index1 = meshT->faces[n].vertex_index[1];
-		int index2 = meshT->faces[n].vertex_index[2];
-		trimesh::point Nnormal = trimesh::normalized(trimesh::trinorm(meshT->vertices[index0].p, meshT->vertices[index1].p, meshT->vertices[index2].p));
-		for (int m = n + 1; m < faceNum; m++)
+
+		std::sort(meshT.faces.begin(), meshT.faces.end(), [&meshT, areas](const MeshFace& face1, const MeshFace& face2)->bool {
+			return areas[face1.index] > areas[face2.index];
+			});
+
+		for (int n = 0; n < faceNum; n++)
 		{
-			int index0 = meshT->faces[m].vertex_index[0];
-			int index1 = meshT->faces[m].vertex_index[1];
-			int index2 = meshT->faces[m].vertex_index[2];
-			trimesh::point Mnormal = trimesh::normalized(trimesh::trinorm(meshT->vertices[index0].p, meshT->vertices[index1].p, meshT->vertices[index2].p));
-			if (std::abs(Nnormal.at(0) - Mnormal.at(0)) < 0.005
-				&& std::abs(Nnormal.at(1) - Mnormal.at(1)) < 0.005
-				&& std::abs(Nnormal.at(2) - Mnormal.at(2)) < 0.005)
+			MeshFace& faceN = meshT.faces[n];
+			if (faceN.bUnique == false)
 			{
-				aface->vertices.push_back(meshT->vertices[meshT->faces[m].vertex_index[0]].p);
-				aface->vertices.push_back(meshT->vertices[meshT->faces[m].vertex_index[1]].p);
-				aface->vertices.push_back(meshT->vertices[meshT->faces[m].vertex_index[2]].p);
-				meshT->faces[m].bUnique = false;
-				meshT->faces[m].bAdd = true;
+				continue;
 			}
-		}
-
-		if (meshT->faces[n].bUnique)
-		{
-			aface->normals.push_back(Nnormal);
-			aface->vertices.push_back(meshT->vertices[meshT->faces[n].vertex_index[0]].p);
-			aface->vertices.push_back(meshT->vertices[meshT->faces[n].vertex_index[1]].p);
-			aface->vertices.push_back(meshT->vertices[meshT->faces[n].vertex_index[2]].p);
-			meshT->faces[n].bAdd = true;
-			getNormalFace(meshT, Nnormal, n, aface); //递归 合并 共法线的相邻面
-			meshes.push_back(aface);
-		}
-		if (meshes.size() > 500)
-		{
-			break;
-		}
-	}
-	//按面积对polygon 进行排序，只保留面积最大的20个polygon:
-	std::sort(meshes.rbegin(), meshes.rend(), [](trimesh::TriMesh* a, trimesh::TriMesh* b)
-		{
-			return getArea(a->vertices) < getArea(b->vertices);
-		});
-	meshes.resize(std::min((int)meshes.size(), 20));
-
-#else
-	// 合并模型上法线相同的面
-	const int num_of_facets = meshT->faces.size();
-	std::vector<int>  facet_queue(num_of_facets, 0);
-	std::vector<bool> facet_visited(num_of_facets, false);
-	int               facet_queue_cnt = 0;
-	trimesh::point normal_ptr;
-	while (1)
-	{
-		// Find next unvisited triangle:
-		int facet_idx = 0;
-		for (; facet_idx < num_of_facets; ++facet_idx)
-		{
-			if (!facet_visited[facet_idx])
+		
+			trimesh::TriMesh* aface = new trimesh::TriMesh();
+			trimesh::point Nnormal = normals.at(faceN.index); 
+			for (int m = n + 1; m < faceNum; m++)
 			{
-				facet_queue[facet_queue_cnt++] = facet_idx;
-				facet_visited[facet_idx] = true;
-				int ver0_idx = meshT->faces[facet_idx].vertex_index[0];
-				int ver1_idx = meshT->faces[facet_idx].vertex_index[1];
-				int ver2_idx = meshT->faces[facet_idx].vertex_index[2];
-				trimesh::point ver0 = meshT->vertices[ver0_idx].p;
-				trimesh::point ver1 = meshT->vertices[ver1_idx].p;
-				trimesh::point ver2 = meshT->vertices[ver2_idx].p;
-				normal_ptr = trimesh::normalized(trimesh::trinorm(ver0, ver1, ver2));
-				trimesh::TriMesh* bottomMesh = new trimesh::TriMesh();
-				meshes.push_back(bottomMesh);
+				MeshFace& faceM = meshT.faces[m];
+				trimesh::point Mnormal = normals.at(faceM.index);
+				if (std::abs(Nnormal.at(0) - Mnormal.at(0)) < 0.005
+					&& std::abs(Nnormal.at(1) - Mnormal.at(1)) < 0.005
+					&& std::abs(Nnormal.at(2) - Mnormal.at(2)) < 0.005)
+				{
+					aface->vertices.push_back(meshT.vertices[faceM.vertex_index[0]].p);
+					aface->vertices.push_back(meshT.vertices[faceM.vertex_index[1]].p);
+					aface->vertices.push_back(meshT.vertices[faceM.vertex_index[2]].p);
+					faceM.bUnique = false;
+					faceM.bAdd = true;
+				}
+			}
+		
+			if (faceN.bUnique)
+			{
+				aface->normals.push_back(Nnormal);
+				aface->vertices.push_back(meshT.vertices[faceN.vertex_index[0]].p);
+				aface->vertices.push_back(meshT.vertices[faceN.vertex_index[1]].p);
+				aface->vertices.push_back(meshT.vertices[faceN.vertex_index[2]].p);
+				faceN.bAdd = true;
+				getNormalFace(meshT, Nnormal, n, aface); //递归 合并 共法线的相邻面
+				meshes.push_back(aface);
+			}
+			else
+			{
+				delete aface;
+			}
+			if (meshes.size() > 500)
+			{
 				break;
 			}
 		}
+		//wang wenbin
+		//for (int n = 1; n < meshT.faces.size(); n++)
+		//{
+		//	int preIndex = n - 1;
+		//	MeshFace currentMeshFace = meshT.faces[n];
+		//	int currentVertIndex0 = meshT.faces[n].vertex_index[0];
+		//	int currentVertIndex1 = meshT.faces[n].vertex_index[1];
+		//	int currentVertIndex2 = meshT.faces[n].vertex_index[2];
+		//	int currentArea = det(meshT.vertices[currentVertIndex0].p, meshT.vertices[currentVertIndex1].p, meshT.vertices[currentVertIndex2].p);
+		//	while (preIndex >= 0 && det(meshT.vertices[meshT.faces[preIndex].vertex_index[0]].p,
+		//		meshT.vertices[meshT.faces[preIndex].vertex_index[1]].p,
+		//		meshT.vertices[meshT.faces[preIndex].vertex_index[2]].p) <
+		//		currentArea)
+		//	{
+		//		meshT.faces[preIndex + 1] = meshT.faces[preIndex];
+		//		preIndex--;
+		//	}
+		//	meshT.faces[preIndex + 1] = currentMeshFace;
+		//}
 
-		if (facet_idx == num_of_facets)
-			break; // Everything was visited already
+		//获取面积最大并且不共法线的500个三角面，并合并和其共法线的面
+		//for (int n = 0; n < faceNum; n++)
+		//{
+		//	if (meshT.faces[n].bUnique==false)
+		//	{
+		//		continue;
+		//	}
+		//	trimesh::TriMesh* aface = new trimesh::TriMesh();
+		//	int index0 = meshT.faces[n].vertex_index[0];
+		//	int index1 = meshT.faces[n].vertex_index[1];
+		//	int index2 = meshT.faces[n].vertex_index[2];
+		//	trimesh::point Nnormal = trimesh::normalized(trimesh::trinorm(meshT.vertices[index0].p, meshT.vertices[index1].p, meshT.vertices[index2].p));
+		//	for (int m = n + 1; m < faceNum; m++)
+		//	{
+		//		int index0 = meshT.faces[m].vertex_index[0];
+		//		int index1 = meshT.faces[m].vertex_index[1];
+		//		int index2 = meshT.faces[m].vertex_index[2];
+		//		trimesh::point Mnormal = trimesh::normalized(trimesh::trinorm(meshT.vertices[index0].p, meshT.vertices[index1].p, meshT.vertices[index2].p));
+		//		if (std::abs(Nnormal.at(0) - Mnormal.at(0)) < 0.005
+		//			&& std::abs(Nnormal.at(1) - Mnormal.at(1)) < 0.005
+		//			&& std::abs(Nnormal.at(2) - Mnormal.at(2)) < 0.005)
+		//		{
+		//			aface->vertices.push_back(meshT.vertices[meshT.faces[m].vertex_index[0]].p);
+		//			aface->vertices.push_back(meshT.vertices[meshT.faces[m].vertex_index[1]].p);
+		//			aface->vertices.push_back(meshT.vertices[meshT.faces[m].vertex_index[2]].p);
+		//			meshT.faces[m].bUnique = false;
+		//			meshT.faces[m].bAdd = true;
+		//		}
+		//	}
+		//
+		//	if (meshT.faces[n].bUnique)
+		//	{
+		//		aface->normals.push_back(Nnormal);
+		//		aface->vertices.push_back(meshT.vertices[meshT.faces[n].vertex_index[0]].p);
+		//		aface->vertices.push_back(meshT.vertices[meshT.faces[n].vertex_index[1]].p);
+		//		aface->vertices.push_back(meshT.vertices[meshT.faces[n].vertex_index[2]].p);
+		//		meshT.faces[n].bAdd = true;
+		//		getNormalFace(meshT, Nnormal, n, aface); //递归 合并 共法线的相邻面
+		//		meshes.push_back(aface);
+		//	}
+		//	if (meshes.size() > 500)
+		//	{
+		//		break;
+		//	}
+		//}
 
-		while (facet_queue_cnt > 0)
-		{
-			int facet_idx = facet_queue[--facet_queue_cnt];
-			int ver0_idx = meshT->faces[facet_idx].vertex_index[0];
-			int ver1_idx = meshT->faces[facet_idx].vertex_index[1];
-			int ver2_idx = meshT->faces[facet_idx].vertex_index[2];
-			trimesh::point ver0 = meshT->vertices[ver0_idx].p;
-			trimesh::point ver1 = meshT->vertices[ver1_idx].p;
-			trimesh::point ver2 = meshT->vertices[ver2_idx].p;
-			trimesh::point this_normal = trimesh::normalized(trimesh::trinorm(ver0, ver1, ver2));
-			if (std::abs(this_normal.at(0) - normal_ptr.at(0)) < 0.001
-				&& std::abs(this_normal.at(1) - normal_ptr.at(1)) < 0.001
-				&& std::abs(this_normal.at(2) - normal_ptr.at(2)) < 0.001)
-				//if(abs((this_normal DOT normal_ptr)-1)<0.001)
+		//按面积对polygon 进行排序，只保留面积最大的20个polygon:
+		std::sort(meshes.rbegin(), meshes.rend(), [](trimesh::TriMesh* a, trimesh::TriMesh* b)
 			{
-				for (int j = 0; j < 3; ++j)
-				{
-					int vertex_idx = meshT->faces[facet_idx].vertex_index[j];
-					meshes.back()->vertices.push_back(meshT->vertices[vertex_idx].p);
-				}
-				facet_visited[facet_idx] = true;
-
-				for (int j = 0; j < 3; ++j)
-				{
-					int neighbor_idx = meshT->faces[facet_idx].connected_face_index[j];
-					if (!facet_visited[neighbor_idx])
-						facet_queue[facet_queue_cnt++] = neighbor_idx;
-				}
-			}
-		}
-		meshes.back()->normals.push_back(normal_ptr);
-	}
-	//按面积对polygon 进行排序，只保留面积最大的50个polygon:
-	std::sort(meshes.rbegin(), meshes.rend(), [](trimesh::TriMesh* a, trimesh::TriMesh* b)
-		{
-			return getArea(a->vertices) < getArea(b->vertices);
-		});
-	meshes.resize(std::min((int)meshes.size(), 50));
-#endif
-
+				return getArea(a->vertices) < getArea(b->vertices);
+			});
+		meshes.resize(std::min((int)meshes.size(), 20));
 
 		//开始遍历所有的多边形，将点转换到xy平面:
 		for (unsigned int polygon_id = 0; polygon_id < meshes.size(); ++polygon_id)
