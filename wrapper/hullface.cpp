@@ -132,7 +132,9 @@ namespace qhullWrapper
 			double dot = n0 * n1;
 			double det = n * n0.cross(n1);
 			double angle = std::atan2(det, dot);
-#define  M_PI 3.1415926
+#ifndef M_PI
+#define M_PI 3.1415926
+#endif
 			if (angle < 0) angle += 2 * M_PI; // 0 <= angle < 2* M_PI
 
 			if (angle == 0)
@@ -248,7 +250,7 @@ namespace qhullWrapper
 			int faceIndex = meshT.faces[n].connected_face_index[k];
 			if (meshT.faces[faceIndex].bAdd)
 			{
-				continue;//ÅÅ³ýÒÑ¾­Ìí¼Ó¹ýµÄface
+				continue;//ï¿½Å³ï¿½ï¿½Ñ¾ï¿½ï¿½ï¿½Ó¹ï¿½ï¿½ï¿½face
 			}
 			int index0 = meshT.faces[faceIndex].vertex_index[0];
 			int index1 = meshT.faces[faceIndex].vertex_index[1];
@@ -277,7 +279,7 @@ namespace qhullWrapper
 		MeshTest meshT;
 		trimesh2meshtest(mesh, meshT);
 
-		//°´Ãæ»ý¶ÔmeshT ½øÐÐÅÅÐò
+		//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½meshT ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		int faceNum = (int)meshT.faces.size();
 		if (faceNum <= 0)
 			return meshes;
@@ -335,7 +337,7 @@ namespace qhullWrapper
 				aface->vertices.push_back(meshT.vertices[faceN.vertex_index[1]].p);
 				aface->vertices.push_back(meshT.vertices[faceN.vertex_index[2]].p);
 				faceN.bAdd = true;
-				getNormalFace(meshT, Nnormal, n, aface); //µÝ¹é ºÏ²¢ ¹²·¨ÏßµÄÏàÁÚÃæ
+				getNormalFace(meshT, Nnormal, n, aface); //ï¿½Ý¹ï¿½ ï¿½Ï²ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ßµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 				meshes.push_back(aface);
 			}
 			else
@@ -367,7 +369,7 @@ namespace qhullWrapper
 		//	meshT.faces[preIndex + 1] = currentMeshFace;
 		//}
 
-		//»ñÈ¡Ãæ»ý×î´ó²¢ÇÒ²»¹²·¨ÏßµÄ500¸öÈý½ÇÃæ£¬²¢ºÏ²¢ºÍÆä¹²·¨ÏßµÄÃæ
+		//ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ßµï¿½500ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½æ£¬ï¿½ï¿½ï¿½Ï²ï¿½ï¿½ï¿½ï¿½ä¹²ï¿½ï¿½ï¿½ßµï¿½ï¿½ï¿½
 		//for (int n = 0; n < faceNum; n++)
 		//{
 		//	if (meshT.faces[n].bUnique==false)
@@ -404,7 +406,7 @@ namespace qhullWrapper
 		//		aface->vertices.push_back(meshT.vertices[meshT.faces[n].vertex_index[1]].p);
 		//		aface->vertices.push_back(meshT.vertices[meshT.faces[n].vertex_index[2]].p);
 		//		meshT.faces[n].bAdd = true;
-		//		getNormalFace(meshT, Nnormal, n, aface); //µÝ¹é ºÏ²¢ ¹²·¨ÏßµÄÏàÁÚÃæ
+		//		getNormalFace(meshT, Nnormal, n, aface); //ï¿½Ý¹ï¿½ ï¿½Ï²ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ßµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		//		meshes.push_back(aface);
 		//	}
 		//	if (meshes.size() > 500)
@@ -413,26 +415,26 @@ namespace qhullWrapper
 		//	}
 		//}
 
-		//°´Ãæ»ý¶Ôpolygon ½øÐÐÅÅÐò£¬Ö»±£ÁôÃæ»ý×î´óµÄ20¸öpolygon:
+		//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½polygon ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½20ï¿½ï¿½polygon:
 		std::sort(meshes.rbegin(), meshes.rend(), [](trimesh::TriMesh* a, trimesh::TriMesh* b)
 			{
 				return getArea(a->vertices) < getArea(b->vertices);
 			});
 		meshes.resize(std::min((int)meshes.size(), 20));
 
-		//¿ªÊ¼±éÀúËùÓÐµÄ¶à±ßÐÎ£¬½«µã×ª»»µ½xyÆ½Ãæ:
+		//ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÐµÄ¶ï¿½ï¿½ï¿½Î£ï¿½ï¿½ï¿½ï¿½ï¿½×ªï¿½ï¿½ï¿½ï¿½xyÆ½ï¿½ï¿½:
 		for (unsigned int polygon_id = 0; polygon_id < meshes.size(); ++polygon_id)
 		{
 			trimesh::TriMesh*& currentMesh = meshes[polygon_id];
 			trimesh::vec3 normal = currentMesh->normals[0];
 
-			//½«ÃæÇáÎ¢Ì§Æð£¬·ÀÖ¹ÓëÄ£ÐÍµÄÃæÖØµþ
+			//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î¢Ì§ï¿½ð£¬·ï¿½Ö¹ï¿½ï¿½Ä£ï¿½Íµï¿½ï¿½ï¿½ï¿½Øµï¿½
 			for (trimesh::point& apoint : currentMesh->vertices)
 			{
 				apoint += normal * 0.1;
 			}
 
-			//ÈÆzºÍyÐý×ª£¬Ê¹Æ½Ãæ±äÆ½
+			//ï¿½ï¿½zï¿½ï¿½yï¿½ï¿½×ªï¿½ï¿½Ê¹Æ½ï¿½ï¿½ï¿½Æ½
 			const trimesh::vec3 XYnormal(0.0f, 0.0f, 1.0f);
 			trimesh::quaternion q = q.rotationTo(normal, XYnormal);
 			trimesh::fxform xf = fromQuaterian(q);
@@ -444,7 +446,7 @@ namespace qhullWrapper
 			currentMesh->normals.push_back(normal);
 			std::vector<trimesh::point>& polygon = currentMesh->vertices;
 
-			//¼ì²é¶à±ßÐÎµÄÄÚ½Ç£¬²¢¶ªÆú½ÇÐ¡ÓÚÒÔÏÂãÐÖµµÄ¶à±ßÐÎ
+			//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îµï¿½ï¿½Ú½Ç£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµï¿½Ä¶ï¿½ï¿½ï¿½ï¿½
 			static constexpr double PI = 3.141592653589793238;
 			bool discard = false;
 			const double angle_threshold = ::cos(10.0 * (double)PI / 180.0);
@@ -465,7 +467,7 @@ namespace qhullWrapper
 				continue;
 			}
 
-			//½«¶à±ßÐÎÄÚËõÒ»µã£¬·ÀÖ¹Åöµ½Ä£ÐÍµÄ±ßÔµ:
+			//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ã£¬ï¿½ï¿½Ö¹ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ÍµÄ±ï¿½Ôµ:
 			trimesh::point centroid = std::accumulate(polygon.begin(), polygon.end(), trimesh::point(0.0, 0.0, 0.0));
 			centroid /= (double)polygon.size();
 			for (auto& vertex : polygon)
@@ -473,9 +475,9 @@ namespace qhullWrapper
 				vertex = 0.9f * vertex + 0.1f * centroid;
 			}
 
-			//¶à±ßÐÎÏÖÔÚÊÇ¼òµ¥ºÍÍ¹µÄ£¬ÎÒÃÇ½«Ê¹¼â½Ç±äÔ²£¬ÕâÑù¿´ÆðÀ´¸üºÃ
-			//¸ÃËã·¨È¡Ò»¸ö¶¥µã£¬¼ÆËã¸÷×Ô±ßµÄÖÐ¼äÖµ£¬È»ºóÒÆ¶¯¶¥µã
-			//½Ó½üÆ½¾ùË®Æ½(ÓÉ¡°aggressivity¡±¿ØÖÆ)¡£ÖØ¸´k´Î¡£
+			//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç¼òµ¥ºï¿½Í¹ï¿½Ä£ï¿½ï¿½ï¿½ï¿½Ç½ï¿½Ê¹ï¿½ï¿½Ç±ï¿½Ô²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+			//ï¿½ï¿½ï¿½ã·¨È¡Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ã£¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô±ßµï¿½ï¿½Ð¼ï¿½Öµï¿½ï¿½È»ï¿½ï¿½ï¿½Æ¶ï¿½ï¿½ï¿½ï¿½ï¿½
+			//ï¿½Ó½ï¿½Æ½ï¿½ï¿½Ë®Æ½(ï¿½É¡ï¿½aggressivityï¿½ï¿½ï¿½ï¿½ï¿½ï¿½)ï¿½ï¿½ï¿½Ø¸ï¿½kï¿½Î¡ï¿½
 			const unsigned int k = 10; // number of iterations
 			const float aggressivity = 0.2f;  // agressivity
 			const unsigned int N = polygon.size();
@@ -510,14 +512,14 @@ namespace qhullWrapper
 				}
 				polygon = points_out; // replace the coarse polygon with the smooth one that we just created
 			}
-			//Í¨¹ýÄæ¾ØÕó×ª»»»ØÈýÎ¬×ø±ê
+			//Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×ªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î¬ï¿½ï¿½ï¿½ï¿½
 			for (trimesh::point& apoint : meshes[polygon_id]->vertices)
 			{
 				apoint = trimesh::inv(xf) * apoint;
 			}
 		}
 
-		//Èý½Ç»¯
+		//ï¿½ï¿½ï¿½Ç»ï¿½
 		for (trimesh::TriMesh* amesh : meshes)
 		{
 			std::vector<trimesh::point> apoints = amesh->vertices;
@@ -526,7 +528,7 @@ namespace qhullWrapper
 			{
 				continue;
 			}
-			//ÐÞÕý·¨Ïß
+			//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 			trimesh::vec3 originNormal = amesh->normals[0];
 			trimesh::vec3 newNormal = trimesh::normalized(trimesh::trinorm(apoints[0], apoints[1], apoints[2]));
 			bool isReverse = false;
