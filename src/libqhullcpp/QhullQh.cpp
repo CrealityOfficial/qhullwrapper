@@ -135,7 +135,7 @@ maybeThrowQhullMessage(int exitCode)
     if(qhull_status!=qh_ERRnone){
         QhullError e(qhull_status, qhull_message);
         clearQhullMessage();
-        throw e; // QH11007 FIX: copy constructor is expensive if logging
+        //throw e; // QH11007 FIX: copy constructor is expensive if logging
     }
 }//maybeThrowQhullMessage
 
