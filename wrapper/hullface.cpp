@@ -5,7 +5,7 @@
 #include "trimesh2/quaternion.h"
 
 #include "mmesh/util/dumplicate.h"
-
+#include "mmesh/trimesh/trimeshutil.h"
 #include <numeric>
 
 namespace qhullWrapper
@@ -237,7 +237,7 @@ namespace qhullWrapper
 		if (mesh)
 		{
 			trimesh::TriMesh* convex = qhullWrapper::convex_hull_3d(mesh);
-			mmesh::weldingMesh(convex);
+			mmesh::dumplicateMesh(convex);
 			meshes = hullFacesFromConvexMesh(convex);
 		}
 		return meshes;
