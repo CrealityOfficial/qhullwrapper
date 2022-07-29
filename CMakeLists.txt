@@ -1,3 +1,6 @@
+__CC_find(Trimesh2)
+__CC_find(MMesh)
+
 __assert_target(trimesh2)
 __assert_target(mmesh)
 
