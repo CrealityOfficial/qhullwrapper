@@ -6,10 +6,20 @@
 
 #include "trimesh2/TriMesh.h"
 #include "ccglobal/tracer.h"
+#include "ccglobal/log.h"
 
 using namespace orgQhull;
 namespace qhullWrapper
 {
+	void debug_print_qhull(Qhull& hull)
+	{
+#if _DEBUG
+		hull.outputQhull();
+		std::string message = hull.qhullMessage();
+		LOGD("debug_print_qhull: %s", message.c_str());
+#endif
+	}
+
 	trimesh::point calTriNormal(trimesh::point ver1, trimesh::point ver2, trimesh::point ver3)
 	{
 		double temp1[3], temp2[3], normal[3];
@@ -209,12 +219,34 @@ namespace qhullWrapper
 		    int end;
 		};
 		
-		std::vector<line> polygons;
+		auto fvertex = [&vertex](int index)->trimesh::vec3 {
+			return trimesh::vec3(*(vertex + 2 * index),
+				*(vertex + 2 * index + 1), 0.0f);
+		};
+
 		try
 		{
 		    Qhull q("", 2, count, vertex, "");
+			debug_print_qhull(q);
+
+#if 0
+			QhullFacetList facets = q.facetList();
+			for (QhullFacet f : facets)
+			{
+				if (!f.isGood())
+					continue;
+
+				QhullVertexSet vs = f.vertices();
+
+				line l;
+				l.start = vs[1].point().id();
+				l.end = vs[0].point().id();
+				fadd(l);
+			}
+#else
 		    QhullFacetList facets = q.facetList();
 		
+			std::vector<line> polygons;
 		    auto fadd = [&polygons](const line& l) {
 		        polygons.push_back(l);
 		    };
@@ -253,15 +285,69 @@ namespace qhullWrapper
 		        }
 		    }
 		
-			auto f = [&vertex](int index)->trimesh::vec3 {
-				return trimesh::vec3(*(vertex + 2 * index),
-					*(vertex + 2 * index + 1), 0.0f);
-			};
-		    for (line& l : polygons)
+			std::sort(polygons.begin(), polygons.end(), [](const line& l1, const line& l2) {
+				return l1.start < l2.start;
+				});
+
+			std::vector<int> result;
+			std::vector<bool> visited;
+			int size = (int)polygons.size();
+			if (size > 0)
+			{
+				visited.resize(size, false);
+				line findLine;
+
+				int index = -1;
+				while (true)
+				{
+					if (index < 0)
+					{
+						findLine = polygons.at(0);
+						index = findLine.end;
+						visited.at(0) = true;
+					}
+					else
+					{
+						int findIndex = -1;
+						bool revert = false;
+						for (int i = 0; i < size; ++i)
+						{
+							if (visited.at(i) == false)
+							{
+								if (index == polygons.at(i).start)
+								{
+									findIndex = i;
+									break;
+								}
+								if (index == polygons.at(i).end)
+								{
+									findIndex = i;
+									revert = true;
+									break;
+								}
+							}
+						}
+						if (findIndex == -1)
+							break;
+
+						findLine = polygons.at(findIndex);
+						if (revert)
+							std::swap(findLine.start, findLine.end);
+
+						index = findLine.end;
+						visited.at(findIndex) = true;
+					}
+
+					result.push_back(findLine.start);
+				}
+			}
+
+		    for (int l : result)
 		    {
-		        mesh->vertices.push_back(f(l.start));
-		        mesh->vertices.push_back(f(l.end));
+		        mesh->vertices.push_back(fvertex(l));
 		    }
+#endif
+
 		}
 		catch (QhullError& e) {
 			delete mesh;
