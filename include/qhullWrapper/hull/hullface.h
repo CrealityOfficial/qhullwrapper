@@ -19,9 +19,10 @@ namespace qhullWrapper
     struct HullFace {
         HMeshPtr mesh = std::make_shared<trimesh::TriMesh>();
         trimesh::vec3 normal;
+        float hullarea = 0.0f;
     };
 
-    QHULLWRAPPER_API void hullFacesFromConvexMesh(trimesh::TriMesh* convexMesh, std::vector<HullFace>& hullFaces);
+    QHULLWRAPPER_API void hullFacesFromConvexMesh(trimesh::TriMesh* convexMesh, std::vector<HullFace>& hullFaces, float thresholdNormal = 0.90);
 }
 
 #endif // QHULLWRAPPER_HULLFACE_1640345352031_H

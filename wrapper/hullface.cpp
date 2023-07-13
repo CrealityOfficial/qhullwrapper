@@ -557,7 +557,7 @@ namespace qhullWrapper
 		return meshes;
 	}
 
-    void hullFacesFromConvexMesh(trimesh::TriMesh* convexMesh, std::vector<HullFace>& hullFaces)
+    void hullFacesFromConvexMesh(trimesh::TriMesh* convexMesh, std::vector<HullFace>& hullFaces, float thresholdNormal)
     {
         //mmesh::dumplicateMesh(convexMesh);
         const auto& faces = convexMesh->faces;
@@ -565,6 +565,8 @@ namespace qhullWrapper
         const int facenums = faces.size();
         std::vector<trimesh::point> normals;
         normals.reserve(facenums);
+        std::vector<float> areas;
+        areas.reserve(facenums);
         std::vector<trimesh::point> areanormals;
         areanormals.reserve(facenums);
         for (const auto& f : faces) {
@@ -573,6 +575,7 @@ namespace qhullWrapper
             const auto& c = vertexs[f[2]];
             const auto& n = 0.5 * (b - a)TRICROSS(c - a);
             const auto & area = len(n);
+            areas.emplace_back(area);
             areanormals.emplace_back(n);
             normals.emplace_back(n / area);
         }
@@ -596,7 +599,7 @@ namespace qhullWrapper
                         if (masks[fa]) {
                             const auto& na = normals[fa];
                             const auto& nr = normals[fr];
-                            if ((nr DOT na) >= 0.95 && (nf DOT na) >= 0.95) {
+                            if ((nr DOT na) >= thresholdNormal && (nf DOT na) >= thresholdNormal) {
                                 currentQueue.emplace(fa);
                                 currentFaces.emplace_back(fa);
                                 masks[fa] = false;
@@ -612,6 +615,7 @@ namespace qhullWrapper
                 trimesh::point normal;
                 for (size_t i = 0; i < num; ++i) {
                     const auto& f = currentFaces[i];
+                    regionMesh.hullarea += areas[f];
                     normal += areanormals[f];
                     for (int j = 0; j < 3; ++j) {
                         mesh->vertices.emplace_back(std::move(vertexs[faces[f][j]]));
@@ -624,20 +628,10 @@ namespace qhullWrapper
                 hullFaces.emplace_back(std::move(regionMesh));
             }
         }
-        for (auto& hull : hullFaces) {
-            hull.mesh->need_pointareas();
-            hull.mesh->need_normals();
-        }
-        std::sort(hullFaces.begin(), hullFaces.end(), [&](HullFace & a, HullFace & b) {
-            double sa = 0, sb = 0;
-            for (const auto& area : a.mesh->pointareas) {
-                sa += area;
-            }
-            for (const auto& area : b.mesh->pointareas) {
-                sb += area;
-            }
-            return sa > sb;
+        std::sort(hullFaces.begin(), hullFaces.end(), [&](HullFace & hulla, HullFace & hullb) {
+            return hulla.hullarea > hullb.hullarea;
         });
+        hullFaces.resize(50);
         auto adjustmentMesh = [&](HMeshPtr & inmesh, trimesh::vec3 & normal) {
             trimesh::TriMesh* currentMesh = inmesh.get();
             //将面轻微抬起，防止与模型的面重叠
