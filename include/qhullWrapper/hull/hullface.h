@@ -3,6 +3,7 @@
 #include "qhullWrapper/interface.h"
 #include "trimesh2/TriMesh.h"
 #include <functional>
+#include <memory>
 #include <vector>
 
 typedef std::shared_ptr<trimesh::TriMesh> HMeshPtr;
@@ -22,7 +23,7 @@ namespace qhullWrapper
         float hullarea = 0.0f;
     };
 
-    QHULLWRAPPER_API void hullFacesFromConvexMesh(trimesh::TriMesh* convexMesh, std::vector<HullFace>& hullFaces, float thresholdNormal = 0.90);
+    QHULLWRAPPER_API void hullFacesFromConvexMesh(trimesh::TriMesh* convexMesh, std::vector<HullFace>& hullFaces, float thresholdNormal = 0.95);
 }
 
 #endif // QHULLWRAPPER_HULLFACE_1640345352031_H
