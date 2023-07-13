@@ -7,6 +7,7 @@
 #include "mmesh/util/dumplicate.h"
 #include "mmesh/trimesh/trimeshutil.h"
 #include <numeric>
+#include <queue>
 
 namespace qhullWrapper
 {
@@ -555,4 +556,182 @@ namespace qhullWrapper
 		}
 		return meshes;
 	}
+
+    void hullFacesFromConvexMesh(trimesh::TriMesh* convexMesh, std::vector<HullFace>& hFaces)
+    {
+        mmesh::dumplicateMesh(convexMesh);
+        const auto& faces = convexMesh->faces;
+        const auto& vertexs = convexMesh->vertices;
+        const int facenums = faces.size();
+        std::vector<trimesh::point> normals;
+        normals.reserve(facenums);
+        std::vector<trimesh::point> areanormals;
+        areanormals.reserve(facenums);
+        for (const auto& f : faces) {
+            const auto& a = vertexs[f[0]];
+            const auto& b = vertexs[f[1]];
+            const auto& c = vertexs[f[2]];
+            const auto& n = 0.5 * (b - a)TRICROSS(c - a);
+            const auto & area = len(n);
+            areanormals.emplace_back(n);
+            normals.emplace_back(n / area);
+        }
+        convexMesh->need_across_edge();
+        auto neighbors = convexMesh->across_edge;
+        std::vector<bool> masks(facenums, true);
+        std::vector<HullFace> hullfaces;
+        for (int f = 0; f < facenums; ++f) {
+            if (masks[f]) {
+                const auto& nf = normals[f];
+                std::vector<int>currentFaces;
+                std::queue<int>currentQueue;
+                currentQueue.emplace(f);
+                currentFaces.emplace_back(f);
+                masks[f] = false;
+                while (!currentQueue.empty()) {
+                    auto& fr = currentQueue.front();
+                    currentQueue.pop();
+                    const auto& neighbor = neighbors[fr];
+                    for (const auto& fa : neighbor) {
+                        if (fa < 0) continue;
+                        if (masks[fa]) {
+                            const auto& na = normals[fa];
+                            const auto& nr = normals[fr];
+                            if ((nr DOT na) > 0.95 && (nf DOT na) > 0.95) {
+                                currentQueue.emplace(fa);
+                                currentFaces.emplace_back(fa);
+                                masks[fa] = false;
+                            }
+                        }
+                    }
+                }
+                HullFace regionMesh;
+                const size_t num = currentFaces.size();
+                regionMesh.mesh->faces.reserve(num);
+                regionMesh.mesh->vertices.reserve(3 * num);
+                trimesh::point normal;
+                for (size_t i = 0; i < num; ++i) {
+                    const auto& f = currentFaces[i];
+                    normal += areanormals[f];
+                    for (int j = 0; j < 3; ++j) {
+                        regionMesh.mesh->vertices.emplace_back(std::move(vertexs[faces[f][j]]));
+                    }
+                    regionMesh.mesh->faces.emplace_back(std::move(trimesh::TriMesh::Face(3 * i, 3 * i + 1, 3 * i + 2)));
+                }
+                regionMesh.normal = trimesh::normalized(normal);
+                if (num > 1) mmesh::dumplicateMesh(&(*regionMesh.mesh));
+                hullfaces.emplace_back(std::move(regionMesh));
+            }
+        }
+        for (auto& hull : hullfaces) {
+            hull.mesh->need_pointareas();
+            hull.mesh->need_normals();
+        }
+        std::sort(hullfaces.begin(), hullfaces.end(), [&](HullFace & a, HullFace & b) {
+            double sa = 0, sb = 0;
+            for (const auto& area : a.mesh->pointareas) {
+                sa += area;
+            }
+            for (const auto& area : b.mesh->pointareas) {
+                sb += area;
+            }
+            return sa > sb;
+        });
+        const int hullsize = hullfaces.size();
+        for (int i = 0; i < hullsize; ++i) {
+            hullfaces[i].mesh->write("test/hullfaces" + std::to_string(i) + ".stl");
+        }
+        auto adjustmentMesh = [&](HMeshPtr & inmesh, trimesh::vec3 & normal) {
+            trimesh::TriMesh* currentMesh = &*inmesh;
+            //将面轻微抬起，防止与模型的面重叠
+            for (trimesh::point& apoint : currentMesh->vertices) {
+                apoint += normal * 0.1;
+            }
+            //绕z和y旋转，使平面变平
+            const trimesh::vec3 XYnormal(0.0f, 0.0f, 1.0f);
+            trimesh::fxform xf = trimesh::fxform::rot_into(normal, XYnormal);
+            for (trimesh::point& apoint : currentMesh->vertices) {
+                apoint = (xf * apoint);
+            }
+            return xf;
+        };
+        auto checkMesh = [&](const HMeshPtr & inmesh) {
+            const auto& polygon = inmesh->vertices;
+            //检查多边形的内角，并丢弃角小于以下阈值的多边形
+            static constexpr double PI = 3.141592653589793238;
+            const double angle_threshold = ::cos(10.0 * (double)PI / 180.0);
+            for (unsigned int i = 0; i < polygon.size(); ++i) {
+                const trimesh::point& prec = polygon[(i == 0) ? polygon.size() - 1 : i - 1];
+                const trimesh::point & curr = polygon[i];
+                const trimesh::point & next = polygon[(i == polygon.size() - 1) ? 0 : i + 1];
+                if (normalized(prec - curr).dot(normalized(next - curr)) > angle_threshold) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        auto indentationMesh = [&](HMeshPtr & inmesh) {
+            auto polygon = inmesh->vertices;
+            trimesh::point centroid = std::accumulate(polygon.begin(), polygon.end(), trimesh::point(0.0, 0.0, 0.0));
+            centroid /= (double)polygon.size();
+            for (auto& vertex : polygon) {
+                vertex = 0.9f * vertex + 0.1f * centroid;
+            }
+            //多边形现在是简单和凸的，我们将使尖角变圆，这样看起来更好
+            //该算法取一个顶点，计算各自边的中间值，然后移动顶点
+            //接近平均水平(由“aggressivity”控制)。重复k次。
+            const size_t k = 10; // number of iterations
+            const float aggressivity = 0.2f;  // agressivity
+            const size_t N = polygon.size();
+            std::vector<std::pair<unsigned int, unsigned int>> neighbours;
+            if (k != 0) {
+                std::vector<trimesh::point> points_out(2 * k * N); // vector long enough to store the future vertices
+                for (size_t j = 0; j < N; ++j) {
+                    points_out[j * 2 * k] = polygon[j];
+                    neighbours.push_back(std::make_pair((int)(j * 2 * k - k) < 0 ? (N - 1) * 2 * k + k : j * 2 * k - k, j * 2 * k + k));
+                }
+
+                for (size_t i = 0; i < k; ++i) {
+                    // Calculate middle of each edge so that neighbours points to something useful:
+                    for (unsigned int j = 0; j < N; ++j)
+                        if (i == 0)
+                            points_out[j * 2 * k + k] = 0.5f * (points_out[j * 2 * k] + points_out[j == N - 1 ? 0 : (j + 1) * 2 * k]);
+                        else {
+                            float r = 0.2 + 0.3 / (k - 1) * i; // the neighbours are not always taken in the middle
+                            points_out[neighbours[j].first] = r * points_out[j * 2 * k] + (1 - r) * points_out[neighbours[j].first - 1];
+                            points_out[neighbours[j].second] = r * points_out[j * 2 * k] + (1 - r) * points_out[neighbours[j].second + 1];
+                        }
+                    // Now we have a triangle and valid neighbours, we can do an iteration:
+                    for (unsigned int j = 0; j < N; ++j)
+                        points_out[2 * k * j] = (1 - aggressivity) * points_out[2 * k * j] +
+                        aggressivity * 0.5f * (points_out[neighbours[j].first] + points_out[neighbours[j].second]);
+
+                    for (auto& n : neighbours) {
+                        ++n.first;
+                        --n.second;
+                    }
+                }
+                polygon.swap(points_out); // replace the coarse polygon with the smooth one that we just created
+            }
+        };
+        hFaces.reserve(hullsize);
+        for (size_t polygon_id = 0; polygon_id < hullsize; ++polygon_id) {
+            HMeshPtr mesh = hullfaces[polygon_id].mesh;
+            trimesh::vec3 normal = hullfaces[polygon_id].normal;
+            trimesh::fxform xf = adjustmentMesh(mesh, normal);
+            *mesh = *qhullWrapper::convex_hull_2d(&*mesh);
+            if (checkMesh(mesh)) {
+                hullfaces.erase(hullfaces.begin() + (polygon_id--));
+                continue;
+            }
+            indentationMesh(mesh);
+            //通过逆矩阵转换回三维坐标
+            for (trimesh::point& apoint : mesh->vertices) {
+                apoint = trimesh::inv(xf) * apoint;
+            }
+        }
+        for (int i = 0; i < hFaces.size(); ++i) {
+            hFaces[i].mesh->write("test/hullfaces" + std::to_string(i) + ".stl");
+        }
+    }
 }
