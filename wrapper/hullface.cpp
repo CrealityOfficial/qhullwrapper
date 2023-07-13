@@ -557,9 +557,9 @@ namespace qhullWrapper
 		return meshes;
 	}
 
-    void hullFacesFromConvexMesh(trimesh::TriMesh* convexMesh, std::vector<HullFace>& hFaces)
+    void hullFacesFromConvexMesh(trimesh::TriMesh* convexMesh, std::vector<HullFace>& hullFaces)
     {
-        mmesh::dumplicateMesh(convexMesh);
+        //mmesh::dumplicateMesh(convexMesh);
         const auto& faces = convexMesh->faces;
         const auto& vertexs = convexMesh->vertices;
         const int facenums = faces.size();
@@ -579,7 +579,6 @@ namespace qhullWrapper
         convexMesh->need_across_edge();
         auto neighbors = convexMesh->across_edge;
         std::vector<bool> masks(facenums, true);
-        std::vector<HullFace> hullfaces;
         for (int f = 0; f < facenums; ++f) {
             if (masks[f]) {
                 const auto& nf = normals[f];
@@ -589,7 +588,7 @@ namespace qhullWrapper
                 currentFaces.emplace_back(f);
                 masks[f] = false;
                 while (!currentQueue.empty()) {
-                    auto& fr = currentQueue.front();
+                    auto fr = currentQueue.front();
                     currentQueue.pop();
                     const auto& neighbor = neighbors[fr];
                     for (const auto& fa : neighbor) {
@@ -597,7 +596,7 @@ namespace qhullWrapper
                         if (masks[fa]) {
                             const auto& na = normals[fa];
                             const auto& nr = normals[fr];
-                            if ((nr DOT na) > 0.95 && (nf DOT na) > 0.95) {
+                            if ((nr DOT na) >= 0.95 && (nf DOT na) >= 0.95) {
                                 currentQueue.emplace(fa);
                                 currentFaces.emplace_back(fa);
                                 masks[fa] = false;
@@ -606,28 +605,30 @@ namespace qhullWrapper
                     }
                 }
                 HullFace regionMesh;
+                trimesh::TriMesh* mesh = regionMesh.mesh.get();
                 const size_t num = currentFaces.size();
-                regionMesh.mesh->faces.reserve(num);
-                regionMesh.mesh->vertices.reserve(3 * num);
+                mesh->faces.reserve(num);
+                mesh->vertices.reserve(3 * num);
                 trimesh::point normal;
                 for (size_t i = 0; i < num; ++i) {
                     const auto& f = currentFaces[i];
                     normal += areanormals[f];
                     for (int j = 0; j < 3; ++j) {
-                        regionMesh.mesh->vertices.emplace_back(std::move(vertexs[faces[f][j]]));
+                        mesh->vertices.emplace_back(std::move(vertexs[faces[f][j]]));
                     }
-                    regionMesh.mesh->faces.emplace_back(std::move(trimesh::TriMesh::Face(3 * i, 3 * i + 1, 3 * i + 2)));
+                    mesh->faces.emplace_back(std::move(trimesh::TriMesh::Face(3 * i, 3 * i + 1, 3 * i + 2)));
                 }
+                if (num > 1) mmesh::dumplicateMesh(mesh);
                 regionMesh.normal = trimesh::normalized(normal);
-                if (num > 1) mmesh::dumplicateMesh(&(*regionMesh.mesh));
-                hullfaces.emplace_back(std::move(regionMesh));
+                //regionMesh.mesh = HMeshPtr(mesh);
+                hullFaces.emplace_back(std::move(regionMesh));
             }
         }
-        for (auto& hull : hullfaces) {
+        for (auto& hull : hullFaces) {
             hull.mesh->need_pointareas();
             hull.mesh->need_normals();
         }
-        std::sort(hullfaces.begin(), hullfaces.end(), [&](HullFace & a, HullFace & b) {
+        std::sort(hullFaces.begin(), hullFaces.end(), [&](HullFace & a, HullFace & b) {
             double sa = 0, sb = 0;
             for (const auto& area : a.mesh->pointareas) {
                 sa += area;
@@ -637,12 +638,8 @@ namespace qhullWrapper
             }
             return sa > sb;
         });
-        const int hullsize = hullfaces.size();
-        for (int i = 0; i < hullsize; ++i) {
-            hullfaces[i].mesh->write("test/hullfaces" + std::to_string(i) + ".stl");
-        }
         auto adjustmentMesh = [&](HMeshPtr & inmesh, trimesh::vec3 & normal) {
-            trimesh::TriMesh* currentMesh = &*inmesh;
+            trimesh::TriMesh* currentMesh = inmesh.get();
             //将面轻微抬起，防止与模型的面重叠
             for (trimesh::point& apoint : currentMesh->vertices) {
                 apoint += normal * 0.1;
@@ -714,24 +711,24 @@ namespace qhullWrapper
                 polygon.swap(points_out); // replace the coarse polygon with the smooth one that we just created
             }
         };
-        hFaces.reserve(hullsize);
-        for (size_t polygon_id = 0; polygon_id < hullsize; ++polygon_id) {
-            HMeshPtr mesh = hullfaces[polygon_id].mesh;
-            trimesh::vec3 normal = hullfaces[polygon_id].normal;
-            trimesh::fxform xf = adjustmentMesh(mesh, normal);
-            *mesh = *qhullWrapper::convex_hull_2d(&*mesh);
-            if (checkMesh(mesh)) {
-                hullfaces.erase(hullfaces.begin() + (polygon_id--));
+        for (int polygon_id = 0; polygon_id < hullFaces.size(); ++polygon_id) {
+            HMeshPtr hullmesh = hullFaces[polygon_id].mesh;
+            trimesh::vec3 normal = hullFaces[polygon_id].normal;
+            trimesh::fxform xf = adjustmentMesh(hullmesh, normal);
+            trimesh::TriMesh* hull = qhullWrapper::convex_hull_2d(&*hullmesh);
+            hullmesh.reset(hull);
+            if (checkMesh(hullmesh)) {
+                hullFaces.erase(hullFaces.begin() + (polygon_id--));
                 continue;
             }
-            indentationMesh(mesh);
+            indentationMesh(hullmesh);
             //通过逆矩阵转换回三维坐标
-            for (trimesh::point& apoint : mesh->vertices) {
+            for (trimesh::point& apoint : hullmesh->vertices) {
                 apoint = trimesh::inv(xf) * apoint;
             }
         }
-        for (int i = 0; i < hFaces.size(); ++i) {
-            hFaces[i].mesh->write("test/hullfaces" + std::to_string(i) + ".stl");
-        }
+        /*for (int i = 0; i < hullFaces.size(); ++i) {
+            hullFaces[i].mesh->write("test/hullfaces" + std::to_string(i) + ".stl");
+        }*/
     }
 }

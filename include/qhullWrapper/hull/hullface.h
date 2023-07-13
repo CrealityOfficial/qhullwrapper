@@ -17,11 +17,11 @@ namespace qhullWrapper
 	QHULLWRAPPER_API std::vector<trimesh::TriMesh*> hullFacesFromConvexMesh(trimesh::TriMesh* mesh);
 	QHULLWRAPPER_API std::vector<trimesh::TriMesh*> hullFacesFromMesh(trimesh::TriMesh* mesh);
     struct HullFace {
-        HMeshPtr mesh;
+        HMeshPtr mesh = std::make_shared<trimesh::TriMesh>();
         trimesh::vec3 normal;
     };
 
-    QHULLWRAPPER_API void hullFacesFromConvexMesh(trimesh::TriMesh* convexMesh, std::vector<HullFace>& hFaces);
+    QHULLWRAPPER_API void hullFacesFromConvexMesh(trimesh::TriMesh* convexMesh, std::vector<HullFace>& hullFaces);
 }
 
 #endif // QHULLWRAPPER_HULLFACE_1640345352031_H
