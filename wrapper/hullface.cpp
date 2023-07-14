@@ -632,22 +632,24 @@ namespace qhullWrapper
         std::sort(hullFaces.begin(), hullFaces.end(), [&](HullFace & hulla, HullFace & hullb) {
             return hulla.hullarea > hullb.hullarea;
         });
+        /*for (int i = 0; i < hullFaces.size(); ++i) {
+            hullFaces[i].mesh->write("test/separates" + std::to_string(i) + ".stl");
+        }*/
         hullFaces.resize(std::min(50, (int)hullFaces.size()));
-        auto adjustmentMesh = [&](HMeshPtr & inmesh, trimesh::vec3 & normal) {
-            trimesh::TriMesh* currentMesh = inmesh.get();
+        auto adjustmentMesh = [&](trimesh::TriMesh * inmesh, trimesh::vec3 & normal) {
             //将面轻微抬起，防止与模型的面重叠
-            for (trimesh::point& apoint : currentMesh->vertices) {
-                apoint += normal * 0.1;
+            for (trimesh::point& apoint : inmesh->vertices) {
+                apoint += normal * 2;
             }
             //绕z和y旋转，使平面变平
             const trimesh::vec3 XYnormal(0.0f, 0.0f, 1.0f);
             trimesh::fxform xf = trimesh::fxform::rot_into(normal, XYnormal);
-            for (trimesh::point& apoint : currentMesh->vertices) {
+            for (trimesh::point& apoint : inmesh->vertices) {
                 apoint = (xf * apoint);
             }
             return xf;
         };
-        auto checkMesh = [&](const HMeshPtr & inmesh) {
+        auto checkMesh = [&](const trimesh::TriMesh* inmesh) {
             const auto& polygon = inmesh->vertices;
             //检查多边形的内角，并丢弃角小于以下阈值的多边形
             static constexpr double PI = 3.141592653589793238;
@@ -662,7 +664,7 @@ namespace qhullWrapper
             }
             return false;
         };
-        auto indentationMesh = [&](HMeshPtr & inmesh) {
+        auto indentationMesh = [&](trimesh::TriMesh* inmesh) {
             auto polygon = inmesh->vertices;
             trimesh::point centroid = std::accumulate(polygon.begin(), polygon.end(), trimesh::point(0.0, 0.0, 0.0));
             centroid /= (double)polygon.size();
@@ -706,21 +708,40 @@ namespace qhullWrapper
                 polygon.swap(points_out); // replace the coarse polygon with the smooth one that we just created
             }
         };
+        auto triangularization = [&](trimesh::TriMesh * inmesh) {
+            //三角化
+            const auto apoints = inmesh->vertices;
+            const int anums = apoints.size();
+            if (anums < 3) {
+                return;
+            }
+            trimesh::point acenter;
+            for (int i = 0; i < anums; ++i) {
+                acenter += apoints[i] / anums;
+            }
+            inmesh->vertices.emplace_back(acenter);
+            for (size_t inx = 0; inx < anums; ++inx) {
+                const auto& ninx = (inx + 1 == anums) ? 0 : (inx + 1);
+                inmesh->faces.emplace_back(trimesh::TriMesh::Face(anums, inx, ninx));
+            }
+        };
         for (int polygon_id = 0; polygon_id < hullFaces.size(); ++polygon_id) {
-            HMeshPtr hullmesh = hullFaces[polygon_id].mesh;
+            trimesh::TriMesh* hullmesh = hullFaces[polygon_id].mesh.get();
             trimesh::vec3 normal = hullFaces[polygon_id].normal;
             trimesh::fxform xf = adjustmentMesh(hullmesh, normal);
-            trimesh::TriMesh* hull = qhullWrapper::convex_hull_2d(&*hullmesh);
-            hullmesh.reset(hull);
-            if (checkMesh(hullmesh)) {
+            trimesh::TriMesh* hull = qhullWrapper::convex_hull_2d(hullmesh);
+            if (checkMesh(hull)) {
                 hullFaces.erase(hullFaces.begin() + (polygon_id--));
                 continue;
             }
-            indentationMesh(hullmesh);
+            indentationMesh(hull);
             //通过逆矩阵转换回三维坐标
-            for (trimesh::point& apoint : hullmesh->vertices) {
+            for (trimesh::point& apoint : hull->vertices) {
                 apoint = trimesh::inv(xf) * apoint;
             }
+            triangularization(hull);
+            hullFaces[polygon_id].mesh.reset(hull);
+            //hull->write("test/hull" + std::to_string(polygon_id) + ".stl");
         }
         /*for (int i = 0; i < hullFaces.size(); ++i) {
             hullFaces[i].mesh->write("test/hullfaces" + std::to_string(i) + ".stl");
