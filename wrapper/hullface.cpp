@@ -560,6 +560,7 @@ namespace qhullWrapper
     void hullFacesFromConvexMesh(trimesh::TriMesh* convexMesh, std::vector<HullFace>& hullFaces, float thresholdNormal)
     {
         //mmesh::dumplicateMesh(convexMesh);
+        //convexMesh->write("test/convex.stl");
         const auto& faces = convexMesh->faces;
         const auto& vertexs = convexMesh->vertices;
         const int facenums = faces.size();
@@ -631,7 +632,7 @@ namespace qhullWrapper
         std::sort(hullFaces.begin(), hullFaces.end(), [&](HullFace & hulla, HullFace & hullb) {
             return hulla.hullarea > hullb.hullarea;
         });
-        hullFaces.resize(50);
+        hullFaces.resize(std::min(50, (int)hullFaces.size()));
         auto adjustmentMesh = [&](HMeshPtr & inmesh, trimesh::vec3 & normal) {
             trimesh::TriMesh* currentMesh = inmesh.get();
             //将面轻微抬起，防止与模型的面重叠
