@@ -559,7 +559,7 @@ namespace qhullWrapper
 
     void hullFacesFromConvexMesh(trimesh::TriMesh* convexMesh, std::vector<HullFace>& hullFaces, float thresholdNormal)
     {
-        //mmesh::dumplicateMesh(convexMesh);
+        mmesh::dumplicateMesh(convexMesh);
         //convexMesh->write("test/convex.stl");
         const auto& faces = convexMesh->faces;
         const auto& vertexs = convexMesh->vertices;
