@@ -625,21 +625,44 @@ namespace qhullWrapper
                 }
                 if (num > 1) mmesh::dumplicateMesh(mesh);
                 regionMesh.normal = trimesh::normalized(normal);
-                //regionMesh.mesh = HMeshPtr(mesh);
                 hullFaces.emplace_back(std::move(regionMesh));
             }
         }
         std::sort(hullFaces.begin(), hullFaces.end(), [&](HullFace & hulla, HullFace & hullb) {
             return hulla.hullarea > hullb.hullarea;
         });
+        hullFaces.resize(std::min(50, (int)hullFaces.size()));
+        auto flatHullFaces = [&](trimesh::TriMesh * inmesh, const trimesh::vec3 & normal) {
+            const auto& apoints = inmesh->vertices;
+            float d = std::numeric_limits<float>::lowest();
+            for (const auto& p : apoints) {
+                const auto& project = (p DOT normal);
+                if (project > d) {
+                    d = project;
+                }
+            }
+            std::vector<trimesh::vec3> newPts;
+            newPts.reserve(apoints.size());
+            for (const auto& p : apoints) {
+                const auto& dist = (p DOT normal) - d;
+                newPts.emplace_back(p - (normal * dist));
+            }
+            inmesh->vertices.swap(newPts);
+        };
+        for (auto& hullMesh : hullFaces) {
+            trimesh::TriMesh* hull = hullMesh.mesh.get();
+            //hull->write("test/before.stl");
+            const auto& normal = hullMesh.normal;
+            flatHullFaces(hull, normal);
+            //hull->write("test/after.stl");
+        }
         /*for (int i = 0; i < hullFaces.size(); ++i) {
             hullFaces[i].mesh->write("test/separates" + std::to_string(i) + ".stl");
         }*/
-        hullFaces.resize(std::min(50, (int)hullFaces.size()));
         auto adjustmentMesh = [&](trimesh::TriMesh * inmesh, trimesh::vec3 & normal) {
             //将面轻微抬起，防止与模型的面重叠
             for (trimesh::point& apoint : inmesh->vertices) {
-                apoint += normal * 2;
+                apoint += normal * 0.2;
             }
             //绕z和y旋转，使平面变平
             const trimesh::vec3 XYnormal(0.0f, 0.0f, 1.0f);
@@ -705,7 +728,8 @@ namespace qhullWrapper
                         --n.second;
                     }
                 }
-                polygon.swap(points_out); // replace the coarse polygon with the smooth one that we just created
+                // replace the coarse polygon with the smooth one that we just created
+                inmesh->vertices.swap(points_out);
             }
         };
         auto triangularization = [&](trimesh::TriMesh * inmesh) {
