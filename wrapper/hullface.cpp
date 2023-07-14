@@ -722,7 +722,7 @@ namespace qhullWrapper
             inmesh->vertices.emplace_back(acenter);
             for (size_t inx = 0; inx < anums; ++inx) {
                 const auto& ninx = (inx + 1 == anums) ? 0 : (inx + 1);
-                inmesh->faces.emplace_back(trimesh::TriMesh::Face(anums, inx, ninx));
+                inmesh->faces.emplace_back(trimesh::TriMesh::Face(anums, ninx, inx));
             }
         };
         for (int polygon_id = 0; polygon_id < hullFaces.size(); ++polygon_id) {
