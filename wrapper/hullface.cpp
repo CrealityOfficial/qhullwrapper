@@ -632,6 +632,37 @@ namespace qhullWrapper
             return hulla.hullarea > hullb.hullarea;
         });
         hullFaces.resize(std::min(50, (int)hullFaces.size()));
+        auto mergeMesh = [&](trimesh::TriMesh * mesh, const trimesh::TriMesh * other) {
+            const auto& afaces = other->faces;
+            const auto& apoints = other->vertices;
+            const int pn = mesh->vertices.size();
+            const int fn = mesh->faces.size();
+            mesh->faces.reserve(fn + afaces.size());
+            mesh->vertices.insert(mesh->vertices.end(), apoints.begin(), apoints.end());
+            for (const auto& f : afaces) {
+                mesh->faces.emplace_back(trimesh::ivec3(pn + f[0], pn + f[1], pn + f[2]));
+            }
+        };
+        for (int i = 0; i < hullFaces.size(); ++i) {
+            const auto& hulla = hullFaces[i];
+            for (int j = i + 1; j < hullFaces.size();) {
+                const auto& hullb = hullFaces[j];
+                if ((hulla.normal DOT hullb.normal) > thresholdNormal) {
+                    hulla.mesh->need_bbox(), hullb.mesh->need_bbox();
+                    const auto& boxa = hulla.mesh->bbox;
+                    const auto& boxb = hullb.mesh->bbox;
+                    const float dist = trimesh::len(boxa.center() - boxb.center());
+                    if (dist < boxa.radius() && dist < boxb.radius()) {
+                        mergeMesh(hulla.mesh.get(), hullb.mesh.get());
+                        hullFaces.erase(hullFaces.begin() + j);
+                    } else {
+                        ++j;
+                    }
+                } else {
+                    ++j;
+                }
+            }
+        }
         auto flatHullFaces = [&](trimesh::TriMesh * inmesh, const trimesh::vec3 & normal) {
             const auto& apoints = inmesh->vertices;
             float d = std::numeric_limits<float>::lowest();
