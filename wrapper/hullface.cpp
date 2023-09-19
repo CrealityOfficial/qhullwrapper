@@ -585,11 +585,15 @@ namespace qhullWrapper
         std::vector<bool> masks(facenums, true);
         for (int f = 0; f < facenums; ++f) {
             if (masks[f]) {
+                float sumArea = 0.f;
+                trimesh::vec3 sumNormal;
                 const auto& nf = normals[f];
                 std::vector<int>currentFaces;
                 std::queue<int>currentQueue;
                 currentQueue.emplace(f);
                 currentFaces.emplace_back(f);
+                sumNormal += areanormals[f];
+                sumArea += areas[f];
                 masks[f] = false;
                 while (!currentQueue.empty()) {
                     auto fr = currentQueue.front();
@@ -600,12 +604,26 @@ namespace qhullWrapper
                         if (masks[fa]) {
                             const auto& na = normals[fa];
                             const auto& nr = normals[fr];
-                            if ((nr DOT na) >= thresholdNormal && (nf DOT na) >= thresholdNormal) {
+                            const auto& dir = sumNormal / sumArea;
+                            if ((nr DOT dir) >= thresholdNormal && (dir DOT na) >= thresholdNormal) {
                                 currentQueue.emplace(fa);
                                 currentFaces.emplace_back(fa);
+                                sumNormal += areanormals[fa];
+                                sumArea += areas[fa];
                                 masks[fa] = false;
                             }
                         }
+                    }
+                }
+                for (int i = 0; i < currentFaces.size();) {
+                    const auto& f = currentFaces[i];
+                    const auto& n = normals[f];
+                    if ((n DOT(sumNormal / sumArea)) < thresholdNormal) {
+                        sumNormal -= areanormals[f];
+                        sumArea -= areas[f];
+                        currentFaces.erase(currentFaces.begin() + i);
+                    } else {
+                        ++i;
                     }
                 }
                 HullFace regionMesh;
@@ -647,7 +665,7 @@ namespace qhullWrapper
             const auto& hulla = hullFaces[i];
             for (int j = i + 1; j < hullFaces.size();) {
                 const auto& hullb = hullFaces[j];
-                if ((hulla.normal DOT hullb.normal) > thresholdNormal) {
+                if ((hulla.normal DOT hullb.normal) >= thresholdNormal) {
                     hulla.mesh->need_bbox(), hullb.mesh->need_bbox();
                     const auto& boxa = hulla.mesh->bbox;
                     const auto& boxb = hullb.mesh->bbox;

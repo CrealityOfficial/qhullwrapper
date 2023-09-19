@@ -23,7 +23,7 @@ namespace qhullWrapper
         float hullarea = 0.0f;
     };
 
-    QHULLWRAPPER_API void hullFacesFromConvexMesh(trimesh::TriMesh* convexMesh, std::vector<HullFace>& hullFaces, float thresholdNormal = 0.99);
+    QHULLWRAPPER_API void hullFacesFromConvexMesh(trimesh::TriMesh* convexMesh, std::vector<HullFace>& hullFaces, float thresholdNormal = 0.995);
 }
 
 #endif // QHULLWRAPPER_HULLFACE_1640345352031_H
