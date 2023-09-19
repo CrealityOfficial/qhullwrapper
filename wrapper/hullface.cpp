@@ -4,8 +4,7 @@
 #include "trimesh2/XForm.h"
 #include "trimesh2/quaternion.h"
 
-#include "mmesh/util/dumplicate.h"
-#include "mmesh/trimesh/trimeshutil.h"
+#include "dumplicate.h"
 #include <numeric>
 #include <queue>
 
@@ -238,7 +237,7 @@ namespace qhullWrapper
 		if (mesh)
 		{
 			trimesh::TriMesh* convex = qhullWrapper::convex_hull_3d(mesh);
-			mmesh::dumplicateMesh(convex);
+            qhullWrapper::dumplicateMesh(convex);
 			meshes = hullFacesFromConvexMesh(convex);
 		}
 		return meshes;
@@ -559,7 +558,7 @@ namespace qhullWrapper
 
     void hullFacesFromConvexMesh(trimesh::TriMesh* convexMesh, std::vector<HullFace>& hullFaces, float thresholdNormal)
     {
-        mmesh::dumplicateMesh(convexMesh);
+        qhullWrapper::dumplicateMesh(convexMesh);
         //convexMesh->write("test/convex.stl");
         const auto& faces = convexMesh->faces;
         const auto& vertexs = convexMesh->vertices;
@@ -641,7 +640,7 @@ namespace qhullWrapper
                     }
                     mesh->faces.emplace_back(std::move(trimesh::TriMesh::Face(3 * i, 3 * i + 1, 3 * i + 2)));
                 }
-                if (num > 1) mmesh::dumplicateMesh(mesh);
+                if (num > 1) qhullWrapper::dumplicateMesh(mesh);
                 regionMesh.normal = trimesh::normalized(normal);
                 hullFaces.emplace_back(std::move(regionMesh));
             }

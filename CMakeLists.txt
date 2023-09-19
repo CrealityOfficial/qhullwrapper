@@ -1,11 +1,9 @@
 __CC_find(Trimesh2)
-__CC_find(MMesh)
 
 __assert_target(trimesh2)
-__assert_target(mmesh)
 
 set(SRCS)
-set(LIBS trimesh2 mmesh)
+set(LIBS trimesh2)
 set(INCS ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 set(INTERFACES ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
